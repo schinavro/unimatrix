@@ -401,7 +401,7 @@ class Column:
     def spawn_tail(self, canvas):
         if args.single_wave and self.drawing is False:
             return
-        if self.drawing is True:
+        if self.drawing is False:
             return
         # Multiplier (mult) is for spawning slow-moving asynchronous nodes
         # less frequently in order to maintain their length
