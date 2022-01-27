@@ -388,15 +388,20 @@ class Column:
         n_type = 'eraser'
         async_speed = self.async_speed
         white = False
+        tail = False
         if self.drawing:
             n_type = 'writer'
+            if randint(0, 5) == 0:
+                tail = True
             if randint(0, 2) == 0:
                 white = True
 
-        canvas.nodes.append(Node(x, n_type, async_speed, white))
+        canvas.nodes.append(Node(x, n_type, async_speed, white, tail))
 
-     def spawn_tail(self, canvas):
+    def spawn_tail(self, canvas):
         if args.single_wave and self.drawing is False:
+            return
+        if self.drawing is True:
             return
         # Multiplier (mult) is for spawning slow-moving asynchronous nodes
         # less frequently in order to maintain their length
@@ -404,6 +409,11 @@ class Column:
             mult = self.async_speed
         else:
             mult = 1
+        # "max_range" prevents crash with very small terminal height
+        self.timer = 3 * mult
+        if args.single_wave:
+            # A bit faster for single wave mode
+            self.timer = int(0.8 * self.timer)
 
         x = self.x_coord
         n_type = 'tail'
@@ -411,7 +421,6 @@ class Column:
         white = False
         tail = True
         canvas.nodes.append(Node(x, n_type, async_speed, white, tail))
-
 
 
 class Node:
@@ -631,7 +640,7 @@ class Writer:
         character = ' '
         attr = self.get_attr(node)
         color = curses.color_pair(1)
-        if node.n_type == ['writer', 'tail']:
+        if node.n_type in ['writer', 'tail']:
             if not node.white and node.last_char:
                 # Special green character for overwriting last white one
                 # at bottom of column that was not being overwritten.
@@ -670,8 +679,7 @@ class Writer:
             pass
 
 
-### Main loop
-
+# Main loop
 def _main(screen):
     writer = Writer(screen)
     stat = Status(screen)
@@ -700,7 +708,7 @@ def _main(screen):
             for col in canvas.columns:
                 if col.timer == 0:
                     col.spawn_node(canvas)
-                elif col.timer == 1:
+                elif col.timer == 3:
                     col.spawn_tail(canvas)
                 col.timer -= 1
 
