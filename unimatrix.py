@@ -395,22 +395,42 @@ class Column:
 
         canvas.nodes.append(Node(x, n_type, async_speed, white))
 
+     def spawn_tail(self, canvas):
+        if args.single_wave and self.drawing is False:
+            return
+        # Multiplier (mult) is for spawning slow-moving asynchronous nodes
+        # less frequently in order to maintain their length
+        if args.asynchronous:
+            mult = self.async_speed
+        else:
+            mult = 1
+
+        x = self.x_coord
+        n_type = 'tail'
+        async_speed = self.async_speed
+        white = False
+        tail = True
+        canvas.nodes.append(Node(x, n_type, async_speed, white, tail))
+
+
 
 class Node:
     """
     A point that runs down the screen drawing or erasing characters.
-    n_type    -> 'writer' or 'eraser'
+    n_type    -> 'writer' or 'eraser' or 'tail'
     white     -> Bool. If True, a white char is written before the green one.
+    tail      -> Bool. If True, a DIM char is written before the green one.
     last_char -> Stores last character, since white characters have to be
                      overwritten with the same one in green one.
     expired   -> Bool. If True, node is marked for deletion
     """
 
-    def __init__(self, x_coord, n_type, async_speed, white=False):
+    def __init__(self, x_coord, n_type, async_speed, white=False, tail=False):
         self.x_coord = x_coord
         self.y_coord = 0
         self.n_type = n_type
         self.white = white
+        self.tail = tail
         self.last_char = None
         self.expired = False
         self.async_speed = async_speed
@@ -597,6 +617,8 @@ class Writer:
         else:
             if node.white and not above:
                 return curses.A_BOLD
+            elif node.tail and not above:
+                return curses.A_DIM
             else:
                 return choice([curses.A_BOLD, curses.A_NORMAL])
 
@@ -609,7 +631,7 @@ class Writer:
         character = ' '
         attr = self.get_attr(node)
         color = curses.color_pair(1)
-        if node.n_type == 'writer':
+        if node.n_type == ['writer', 'tail']:
             if not node.white and node.last_char:
                 # Special green character for overwriting last white one
                 # at bottom of column that was not being overwritten.
@@ -678,12 +700,14 @@ def _main(screen):
             for col in canvas.columns:
                 if col.timer == 0:
                     col.spawn_node(canvas)
+                elif col.timer == 1:
+                    col.spawn_tail(canvas)
                 col.timer -= 1
 
             for node in canvas.nodes:
 
                 if args.flashers:
-                    if node.n_type == 'writer' and not randint(0, 9):
+                    if node.n_type in ['writer', 'tail'] and not randint(0, 9):
                         canvas.flashers.add((node.y_coord, node.x_coord))
                     elif node.n_type == 'eraser':
                         try:
@@ -709,6 +733,7 @@ def _main(screen):
                         node.y_coord -= 1
                     else:
                         node.expired = True
+                 # Mark trailing part
 
             if args.flashers and (not async_clock % 3):
                 for f in canvas.flashers:
